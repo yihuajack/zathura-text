@@ -3,20 +3,16 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#define TEXT_BUFFER_SIZE 8192
+#define LINE_BUFFER_SIZE 1024
+#define PAGE_LINE_SIZE 10
 
 struct text_document_s {
-  // unsigned int n_pages;
-  // struct text_page_s *page;
-  // struct text_page_s *page_tail;
   girara_list_t* pages;
 };
 
 struct text_page_s {
-  char *file;
-  // unsigned int width;
-  // unsigned int height;
-  // struct text_page_s *next;
+  char** file;
+  unsigned int n_lines;
 };
 
 #endif // INTERNAL_H

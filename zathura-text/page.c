@@ -32,12 +32,11 @@ text_page_init(zathura_page_t* page)
 zathura_error_t
 text_page_clear(zathura_page_t* UNUSED(page), void* data)
 {
-  /* if (page == NULL) {
-    return ZATHURA_ERROR_INVALID_ARGUMENTS;
-  }  */
-
   text_page_t* text_page = data;
   if (text_page != NULL) {
+    for (unsigned int i = 0; i < text_page->n_lines; i++) {
+      free(text_page->file[i]);
+    }
     g_free(text_page->file);
     g_free(text_page);
   }

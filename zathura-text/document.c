@@ -19,20 +19,9 @@ text_document_open(zathura_document_t* document)
   }
 
   text_document_t* text_document = g_malloc0(sizeof(text_document_t));
-  // text_document->n_pages = 0;
-  // text_document->page_head = NULL;
 
   /* archive path */
   const char *path = zathura_document_get_path(document);
-
-  /* text_document->page_head = g_malloc0(sizeof(text_page_t));
-  text_document->page_head->file = NULL;
-  text_document->page_head->next = NULL;
-
-  if (fgets(content, 400, ifile)) {
-    text_document->page_head->file = strdup(content);
-    text_document->page_tail = text_document->page_head; 
-  }  */
 
   /* create list of supported files (pages) */
   text_document->pages = girara_list_new2((girara_free_function_t) text_page_clear);
@@ -74,32 +63,10 @@ text_document_free(zathura_document_t* document, void* data)
     girara_list_free(text_document->pages);
   }
 
-  /* if (text_document != NULL) {
-    for (unsigned int i = 0; i < zathura_document_get_number_of_pages(document); i++) {
-      g_free(text_document->pages[i].file);
-    }
-    g_free(text_document->pages);
-    g_free(text_document);
-    zathura_document_set_data(document, NULL);
-  }  */
-
   g_free(text_document);
 
   return ZATHURA_ERROR_OK;
 }
-
-/* static void
-text_document_page_free(text_page_t* text_page)
-{
-  if (text_page == NULL) {
-    return;
-  }
-
-  if (text_page->file != NULL) {
-    g_free(text_page->file);
-  }
-  g_free(text_page);
-}  */
 
 static bool
 read_text(text_document_t* text_document, const char* path)
@@ -109,21 +76,49 @@ read_text(text_document_t* text_document, const char* path)
     return false;
   }
 
-  char content[400];
+  char page_content[PAGE_LINE_SIZE][LINE_BUFFER_SIZE];
+  int c;
+  unsigned int i = 0, j = 0;
   while (1) {
-    if (fgets(content, 400, r)) {
+    c = fgetc(r);
+    if (c != EOF) {
+      if (c == '\n') {
+        page_content[i++][j] = '\0';
+        j = 0;
+        if (i >= PAGE_LINE_SIZE) {
+          text_page_t *page = g_malloc0(sizeof(text_page_t));
+          page->file = g_malloc0(sizeof(char*) * PAGE_LINE_SIZE);
+          for (unsigned int k = 0; k < PAGE_LINE_SIZE; k++) {
+            page->file[k] = strdup(page_content[k]);
+          }
+          page->n_lines = PAGE_LINE_SIZE;
+          girara_list_append(text_document->pages, page);
+          memset(page_content, 0, sizeof(page_content));
+          i = 0;
+        }
+      } else {
+        page_content[i][j++] = c;
+      }
+    } else if (feof(r)) {
+      page_content[i][j] = '\0';
       text_page_t *page = g_malloc0(sizeof(text_page_t));
-      page->file = strdup(content);
-      /* page.next = NULL;
-      text_document->page_tail->next = page;
-      text_document->page_tail = text_document->page_tail->next;
-      text_document->n_pages++;  */
+      page->file = g_malloc0(sizeof(char*) * (i + 1));
+      for (unsigned int k = 0; k <= i; k++) {
+        page->file[k] = strdup(page_content[k]);
+      }
+      page->n_lines = i + 1;
       girara_list_append(text_document->pages, page);
-    } else {
+      break;
+    } else if (ferror(r)) {
+      fclose(r);
       return false;
     }
   }
 
-  fclose(r);
-  return true;
+  if (fclose(r)) {
+    perror("fclose error");
+    return false;
+  } else {
+    return true;
+  }
 }
